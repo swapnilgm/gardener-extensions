@@ -22,12 +22,14 @@ import (
 	awsinstall "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/apis/aws/install"
 	"github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/aws"
 	awscmd "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/cmd"
+	awsbackupentry "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/backupentry"
 	awscontrolplane "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/controlplane"
 	awsinfrastructure "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/infrastructure"
 	awsworker "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/worker"
 	awscontrolplanebackup "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/webhook/controlplanebackup"
 	awscontrolplaneexposure "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/webhook/controlplaneexposure"
 	"github.com/gardener/gardener-extensions/pkg/controller"
+	"github.com/gardener/gardener-extensions/pkg/controller/backupentry"
 	controllercmd "github.com/gardener/gardener-extensions/pkg/controller/cmd"
 	"github.com/gardener/gardener-extensions/pkg/controller/infrastructure"
 	"github.com/gardener/gardener-extensions/pkg/controller/worker"
@@ -47,6 +49,15 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 			LeaderElectionNamespace: os.Getenv("LEADER_ELECTION_NAMESPACE"),
 		}
 		configFileOpts = &awscmd.ConfigOptions{}
+
+		// options for the controlplane controller
+		backupEntryCtrlOpts = &controllercmd.ControllerOptions{
+			MaxConcurrentReconciles: 5,
+		}
+		backupEntryReconcileOpts = &backupentry.ReconcilerOptions{
+			DeletionGracePeriodDays: 0,
+		}
+		backupEntryCtrlOptsUnprefixed = controllercmd.NewOptionAggregator(backupEntryCtrlOpts, backupEntryReconcileOpts)
 
 		// options for the controlplane controller
 		controlPlaneCtrlOpts = &controllercmd.ControllerOptions{
@@ -71,6 +82,11 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		}
 		workerCtrlOptsUnprefixed = controllercmd.NewOptionAggregator(workerCtrlOpts, workerReconcileOpts)
 
+		// // options for the controlplane controller
+		// backupBucketCtrlOpts = &controllercmd.ControllerOptions{
+		// 	MaxConcurrentReconciles: 5,
+		// }
+
 		controllerSwitches   = awscmd.ControllerSwitchOptions()
 		webhookSwitches      = awscmd.WebhookSwitchOptions()
 		webhookServerOptions = &webhookcmd.ServerOptions{
@@ -89,7 +105,8 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 			mgrOpts,
 			controllercmd.PrefixOption("controlplane-", controlPlaneCtrlOpts),
 			controllercmd.PrefixOption("infrastructure-", &infraCtrlOptsUnprefixed),
-			controllercmd.PrefixOption("worker-", &workerCtrlOptsUnprefixed),
+			controllercmd.PrefixOption("worker-", workerCtrlOpts),
+			controllercmd.PrefixOption("backupentry-", &backupEntryCtrlOptsUnprefixed),
 			configFileOpts,
 			controllerSwitches,
 			webhookOptions,
@@ -130,6 +147,8 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 			infraCtrlOpts.Completed().Apply(&awsinfrastructure.DefaultAddOptions.Controller)
 			infraReconcileOpts.Completed().Apply(&awsinfrastructure.DefaultAddOptions.IgnoreOperationAnnotation)
 			workerCtrlOpts.Completed().Apply(&awsworker.DefaultAddOptions.Controller)
+			backupEntryCtrlOpts.Completed().Apply(&awsbackupentry.DefaultAddOptions.Controller)
+			backupEntryReconcileOpts.Completed().Apply(&awsbackupentry.DefaultAddOptions.DeletionGracePeriodDays)
 
 			if err := controllerSwitches.Completed().AddToManager(mgr); err != nil {
 				controllercmd.LogErrAndExit(err, "Could not add controllers to manager")

@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 )
 
@@ -47,6 +48,7 @@ func NewClient(accessKeyID, secretAccessKey, region string) (Interface, error) {
 		EC2: ec2.New(s, config),
 		ELB: elb.New(s, config),
 		STS: sts.New(s, config),
+		S3:  s3.New(s, config),
 	}, nil
 }
 
@@ -166,6 +168,21 @@ func (c *Client) ListKubernetesSecurityGroups(ctx context.Context, vpcID, cluste
 func (c *Client) DeleteSecurityGroup(ctx context.Context, id string) error {
 	if _, err := c.EC2.DeleteSecurityGroupWithContext(ctx, &ec2.DeleteSecurityGroupInput{GroupId: aws.String(id)}); err != nil {
 		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "InvalidGroup.NotFound" {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// DeleteObjectsWithPrefix deletes the s3 objects with the specific <prefix> from <bucket>. If it does not exist,
+// no error is returned.
+func (c *Client) DeleteObjectsWithPrefix(ctx context.Context, bucket string, prefix string) error {
+	if _, err := c.S3.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
+		Bucket: &bucket,
+		Key:    &prefix,
+	}); err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == elb.ErrCodeAccessPointNotFoundException {
 			return nil
 		}
 		return err

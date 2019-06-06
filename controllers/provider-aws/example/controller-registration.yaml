@@ -5,9 +5,11 @@ metadata:
   name: provider-aws
 spec:
   resources:
-  - kind: Infrastructure
+  - kind: BackupEntry
     type: aws
   - kind: ControlPlane
+    type: aws
+  - kind: Infrastructure
     type: aws
   - kind: Worker
     type: aws

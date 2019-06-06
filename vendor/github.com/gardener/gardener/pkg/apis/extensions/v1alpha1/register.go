@@ -55,6 +55,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&WorkerList{},
 		&ControlPlane{},
 		&ControlPlaneList{},
+		&BackupBucket{},
+		&BackupBucketList{},
+		&BackupEntry{},
+		&BackupEntryList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

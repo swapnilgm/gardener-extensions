@@ -7,6 +7,9 @@ replicaCount: 1
 resources: {}
 
 controllers:
+  backupentry:
+    concurrentSyncs: 5
+    deletionGracePeriodDays: false
   controlplane:
     concurrentSyncs: 5
   infrastructure:
