@@ -23,13 +23,26 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 )
 
+const (
+	// AWS-SDK is missing these constant. So, added here till the time it comes from
+	// upstream AWS-SDK-GO
+
+	// errCodeBucketNotEmpty for service response error code
+	// "BucketNotEmpty".
+	//
+	// The specified bucket us exist.
+	errCodeBucketNotEmpty = "BucketNotEmpty"
+)
+
 // Interface is an interface which must be implemented by AWS clients.
 type Interface interface {
 	GetAccountID(ctx context.Context) (string, error)
 	GetInternetGateway(ctx context.Context, vpcID string) (string, error)
 
 	// S3 wrappers
-	DeleteObjectsWithPrefix(ctx context.Context, bucket string, prefix string) error
+	DeleteObjectsWithPrefix(ctx context.Context, bucket, prefix string) error
+	CreateBucket(ctx context.Context, bucket string) error
+	DeleteBucket(ctx context.Context, bucket string) error
 
 	// The following functions are only temporary needed due to https://github.com/gardener/gardener/issues/129.
 	ListKubernetesELBs(ctx context.Context, vpcID, clusterName string) ([]string, error)

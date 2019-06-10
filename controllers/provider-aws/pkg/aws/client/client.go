@@ -177,13 +177,67 @@ func (c *Client) DeleteSecurityGroup(ctx context.Context, id string) error {
 
 // DeleteObjectsWithPrefix deletes the s3 objects with the specific <prefix> from <bucket>. If it does not exist,
 // no error is returned.
-func (c *Client) DeleteObjectsWithPrefix(ctx context.Context, bucket string, prefix string) error {
-	if _, err := c.S3.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
-		Bucket: &bucket,
-		Key:    &prefix,
+func (c *Client) DeleteObjectsWithPrefix(ctx context.Context, bucket, prefix string) error {
+	in := &s3.ListObjectsInput{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(prefix),
+	}
+	objectIDs := make([]*s3.ObjectIdentifier, 0)
+	if err := c.S3.ListObjectsPagesWithContext(ctx, in, func(page *s3.ListObjectsOutput, lastPage bool) bool {
+		for _, key := range page.Contents {
+			obj := &s3.ObjectIdentifier{
+				Key: key.Key,
+			}
+			objectIDs = append(objectIDs, obj)
+		}
+		return !lastPage
 	}); err != nil {
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == elb.ErrCodeAccessPointNotFoundException {
+		return err
+	}
+	if len(objectIDs) == 0 {
+		return nil
+	}
+
+	if _, err := c.S3.DeleteObjectsWithContext(ctx, &s3.DeleteObjectsInput{
+		Bucket: aws.String(bucket),
+		Delete: &s3.Delete{
+			Objects: objectIDs,
+		},
+	}); err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == s3.ErrCodeNoSuchKey {
 			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// CreateBucket creates the s3 bucket with name <bucket>. If it already exist,
+// no error is returned.
+func (c *Client) CreateBucket(ctx context.Context, bucket string) error {
+	if _, err := c.S3.CreateBucketWithContext(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)}); err != nil {
+		if aerr, ok := err.(awserr.Error); ok && (aerr.Code() == s3.ErrCodeBucketAlreadyExists || aerr.Code() == s3.ErrCodeBucketAlreadyOwnedByYou) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// DeleteBucket deletes the s3 bucket with name <bucket>. If it does not exist,
+// no error is returned.
+func (c *Client) DeleteBucket(ctx context.Context, bucket string) error {
+	if _, err := c.S3.DeleteBucketWithContext(ctx, &s3.DeleteBucketInput{Bucket: aws.String(bucket)}); err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == s3.ErrCodeNoSuchBucket {
+				return nil
+			}
+			if aerr.Code() == errCodeBucketNotEmpty {
+				if err := c.DeleteObjectsWithPrefix(ctx, bucket, ""); err != nil {
+					return err
+				}
+				return c.DeleteBucket(ctx, bucket)
+			}
 		}
 		return err
 	}

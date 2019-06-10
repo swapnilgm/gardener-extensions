@@ -22,6 +22,7 @@ import (
 	awsinstall "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/apis/aws/install"
 	"github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/aws"
 	awscmd "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/cmd"
+	awsbackupbucket "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/backupbucket"
 	awsbackupentry "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/backupentry"
 	awscontrolplane "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/controlplane"
 	awsinfrastructure "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/controller/infrastructure"
@@ -50,7 +51,12 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		}
 		configFileOpts = &awscmd.ConfigOptions{}
 
-		// options for the controlplane controller
+		// options for the backupbucket controller
+		backupBucketCtrlOpts = &controllercmd.ControllerOptions{
+			MaxConcurrentReconciles: 5,
+		}
+
+		// options for the backupentry controller
 		backupEntryCtrlOpts = &controllercmd.ControllerOptions{
 			MaxConcurrentReconciles: 5,
 		}
@@ -103,10 +109,11 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 		aggOption = controllercmd.NewOptionAggregator(
 			restOpts,
 			mgrOpts,
+			controllercmd.PrefixOption("backupbucket-", backupBucketCtrlOpts),
+			controllercmd.PrefixOption("backupentry-", &backupEntryCtrlOptsUnprefixed),
 			controllercmd.PrefixOption("controlplane-", controlPlaneCtrlOpts),
 			controllercmd.PrefixOption("infrastructure-", &infraCtrlOptsUnprefixed),
 			controllercmd.PrefixOption("worker-", workerCtrlOpts),
-			controllercmd.PrefixOption("backupentry-", &backupEntryCtrlOptsUnprefixed),
 			configFileOpts,
 			controllerSwitches,
 			webhookOptions,
@@ -143,12 +150,13 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 			configFileOpts.Completed().ApplyMachineImages(&awsworker.DefaultAddOptions.MachineImagesToAMIMapping)
 			configFileOpts.Completed().ApplyETCDStorage(&awscontrolplaneexposure.DefaultAddOptions.ETCDStorage)
 			configFileOpts.Completed().ApplyETCDBackup(&awscontrolplanebackup.DefaultAddOptions.ETCDBackup)
+			backupBucketCtrlOpts.Completed().Apply(&awsbackupbucket.Options)
+			backupEntryCtrlOpts.Completed().Apply(&awsbackupentry.DefaultAddOptions.Controller)
+			backupEntryReconcileOpts.Completed().Apply(&awsbackupentry.DefaultAddOptions.DeletionGracePeriodDays)
 			controlPlaneCtrlOpts.Completed().Apply(&awscontrolplane.Options)
 			infraCtrlOpts.Completed().Apply(&awsinfrastructure.DefaultAddOptions.Controller)
 			infraReconcileOpts.Completed().Apply(&awsinfrastructure.DefaultAddOptions.IgnoreOperationAnnotation)
 			workerCtrlOpts.Completed().Apply(&awsworker.DefaultAddOptions.Controller)
-			backupEntryCtrlOpts.Completed().Apply(&awsbackupentry.DefaultAddOptions.Controller)
-			backupEntryReconcileOpts.Completed().Apply(&awsbackupentry.DefaultAddOptions.DeletionGracePeriodDays)
 
 			if err := controllerSwitches.Completed().AddToManager(mgr); err != nil {
 				controllercmd.LogErrAndExit(err, "Could not add controllers to manager")

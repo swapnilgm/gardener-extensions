@@ -12,41 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backupentry
+package backupbucket
 
 import (
-	"github.com/gardener/gardener-extensions/pkg/controller/backupentry"
+	"github.com/gardener/gardener-extensions/pkg/controller/backupbucket"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var (
-	// DefaultAddOptions are the default AddOptions for AddToManager.
-	DefaultAddOptions = AddOptions{}
+	// Options are the default options for AddToManager.
+	Options = controller.Options{}
 )
-
-// AddOptions are options to apply when adding the AWS worker controller to the manager.
-type AddOptions struct {
-	// Controller are the controller.Options.
-	Controller controller.Options
-	// DeletionGracePeriodDays holds the period in number of days to delete the Backup Entry after deletion timestamp is set.
-	// If value is set to 0 then the BackupEntryController will trigger deletion immediately.s
-	DeletionGracePeriodDays int64
-}
 
 // AddToManagerWithOptions adds a controller with the given Options to the given manager.
 // The opts.Reconciler is being set with a newly instantiated actuator.
-func AddToManagerWithOptions(mgr manager.Manager, opts AddOptions) error {
-	return backupentry.Add(mgr, backupentry.AddArgs{
-		Actuator:          backupentry.NewActuator(newActuator(), &opts.DeletionGracePeriodDays, log.Log.WithName("aws-backupentry-actuator")),
-		ControllerOptions: opts.Controller,
-		Predicates:        backupentry.DefaultPredicates(mgr),
+func AddToManagerWithOptions(mgr manager.Manager, opts controller.Options) error {
+	return backupbucket.Add(mgr, backupbucket.AddArgs{
+		Actuator:          newActuator(),
+		ControllerOptions: opts,
+		Predicates:        backupbucket.DefaultPredicates(mgr),
 	})
 }
 
 // AddToManager adds a controller with the default Options.
 func AddToManager(mgr manager.Manager) error {
-	return AddToManagerWithOptions(mgr, DefaultAddOptions)
+	return AddToManagerWithOptions(mgr, Options)
 }

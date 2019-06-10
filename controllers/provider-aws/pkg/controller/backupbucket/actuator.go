@@ -12,29 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backupentry
+package backupbucket
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/go-logr/logr"
 
 	"github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/aws"
 	awsclient "github.com/gardener/gardener-extensions/controllers/provider-aws/pkg/aws/client"
-	"github.com/gardener/gardener-extensions/pkg/controller/backupentry"
+	"github.com/gardener/gardener-extensions/pkg/controller/backupbucket"
 
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	kutil "github.com/gardener/gardener/pkg/utils/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 type actuator struct {
-	backupentry.ProviderActuator
+	backupbucket.Actuator
 	client client.Client
+	logger logr.Logger
 }
 
-func newActuator() backupentry.ProviderActuator {
-	return &actuator{}
+func newActuator() backupbucket.Actuator {
+	return &actuator{
+		logger: log.Log.WithName("aws-backupbucket-actuator"),
+	}
 }
 
 func (a *actuator) InjectClient(client client.Client) error {
@@ -42,20 +47,30 @@ func (a *actuator) InjectClient(client client.Client) error {
 	return nil
 }
 
-func (a *actuator) Reconcile(ctx context.Context, be *extensionsv1alpha1.BackupEntry) error {
-	return nil
-}
-
-func (a *actuator) Delete(ctx context.Context, be *extensionsv1alpha1.BackupEntry) error {
+func (a *actuator) Reconcile(ctx context.Context, bb *extensionsv1alpha1.BackupBucket) error {
 	providerSecret := &corev1.Secret{}
-	if err := a.client.Get(ctx, kutil.Key(be.Spec.SecretRef.Namespace, be.Spec.SecretRef.Name), providerSecret); err != nil {
+	if err := a.client.Get(ctx, kutil.Key(bb.Spec.SecretRef.Namespace, bb.Spec.SecretRef.Name), providerSecret); err != nil {
 		return err
 	}
 
-	awsClient, err := awsclient.NewClient(string(providerSecret.Data[aws.AccessKeyID]), string(providerSecret.Data[aws.SecretAccessKey]), be.Spec.Region)
+	awsClient, err := awsclient.NewClient(string(providerSecret.Data[aws.AccessKeyID]), string(providerSecret.Data[aws.SecretAccessKey]), bb.Spec.Region)
 	if err != nil {
 		return err
 	}
 
-	return awsClient.DeleteObjectsWithPrefix(ctx, be.Spec.Bucket, fmt.Sprintf("%s/", be.Name))
+	return awsClient.CreateBucket(ctx, bb.Name)
+}
+
+func (a *actuator) Delete(ctx context.Context, bb *extensionsv1alpha1.BackupBucket) error {
+	providerSecret := &corev1.Secret{}
+	if err := a.client.Get(ctx, kutil.Key(bb.Spec.SecretRef.Namespace, bb.Spec.SecretRef.Name), providerSecret); err != nil {
+		return err
+	}
+
+	awsClient, err := awsclient.NewClient(string(providerSecret.Data[aws.AccessKeyID]), string(providerSecret.Data[aws.SecretAccessKey]), bb.Spec.Region)
+	if err != nil {
+		return err
+	}
+
+	return awsClient.DeleteBucket(ctx, bb.Name)
 }

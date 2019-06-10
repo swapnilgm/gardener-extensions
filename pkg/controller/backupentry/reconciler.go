@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	// EventBackupEntryDeletion an event reason to describe backup entry reconciliation.
+	// EventBackupEntryReconciliation an event reason to describe backup entry reconciliation.
 	EventBackupEntryReconciliation string = "BackupEntryReconciliation"
 	// EventBackupEntryDeletion an event reason to describe backup entry deletion.
 	EventBackupEntryDeletion string = "BackupEntryDeletion"
@@ -84,18 +84,13 @@ func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
-	cluster, err := extensionscontroller.GetCluster(r.ctx, r.client, be.Namespace)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
 	if be.DeletionTimestamp != nil {
-		return r.delete(r.ctx, be, cluster)
+		return r.delete(r.ctx, be)
 	}
-	return r.reconcile(r.ctx, be, cluster)
+	return r.reconcile(r.ctx, be)
 }
 
-func (r *reconciler) reconcile(ctx context.Context, be *extensionsv1alpha1.BackupEntry, cluster *extensionscontroller.Cluster) (reconcile.Result, error) {
+func (r *reconciler) reconcile(ctx context.Context, be *extensionsv1alpha1.BackupEntry) (reconcile.Result, error) {
 	if err := extensionscontroller.EnsureFinalizer(ctx, r.client, FinalizerName, be); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -124,7 +119,7 @@ func (r *reconciler) reconcile(ctx context.Context, be *extensionsv1alpha1.Backu
 	return reconcile.Result{}, nil
 }
 
-func (r *reconciler) delete(ctx context.Context, be *extensionsv1alpha1.BackupEntry, cluster *extensionscontroller.Cluster) (reconcile.Result, error) {
+func (r *reconciler) delete(ctx context.Context, be *extensionsv1alpha1.BackupEntry) (reconcile.Result, error) {
 	hasFinalizer, err := extensionscontroller.HasFinalizer(be, FinalizerName)
 	if err != nil {
 		r.logger.Error(err, "Could not instantiate finalizer deletion")
@@ -141,7 +136,7 @@ func (r *reconciler) delete(ctx context.Context, be *extensionsv1alpha1.BackupEn
 	}
 
 	r.logger.Info("Starting the deletion of backupentry", "backupentry", be.Name)
-	r.recorder.Event(be, corev1.EventTypeNormal, EventBackupEntryDeletion, "Deleting the be")
+	r.recorder.Event(be, corev1.EventTypeNormal, EventBackupEntryDeletion, "Deleting the backupentry")
 	deleted, err := r.actuator.Delete(r.ctx, be)
 	if err != nil {
 		msg := "Error deleting backupentry"

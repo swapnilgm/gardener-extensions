@@ -7,6 +7,8 @@ replicaCount: 1
 resources: {}
 
 controllers:
+  backupbucket:
+    concurrentSyncs: 5
   backupentry:
     concurrentSyncs: 5
     deletionGracePeriodDays: false

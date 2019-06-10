@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backupentry
+package backupbucket
 
 import (
 	extensionscontroller "github.com/gardener/gardener-extensions/pkg/controller"
@@ -26,15 +26,15 @@ import (
 )
 
 const (
-	// FinalizerName is the backupentry controller finalizer.
-	FinalizerName = "extensions.gardener.cloud/backupentry"
+	// FinalizerName is the backupbucket controller finalizer.
+	FinalizerName = "extensions.gardener.cloud/backupbucket"
 	// ControllerName is the name of the controller
-	ControllerName = "backupentry-controller"
+	ControllerName = "backupbucket-controller"
 )
 
-// AddArgs are arguments for adding a BackupEntry controller to a manager.
+// AddArgs are arguments for adding a BackupBucket controller to a manager.
 type AddArgs struct {
-	// Actuator is a BackupEntry actuator.
+	// Actuator is a BackupBucket actuator.
 	Actuator Actuator
 	// ControllerOptions are the controller options used for creating a controller.
 	// The options.Reconciler is always overridden with a reconciler created from the
@@ -53,7 +53,7 @@ func DefaultPredicates(mgr manager.Manager) []predicate.Predicate {
 	}
 }
 
-// Add creates a new BackupEntry Controller and adds it to the Manager.
+// Add creates a new BackupBucket Controller and adds it to the Manager.
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, args AddArgs) error {
 	args.ControllerOptions.Reconciler = NewReconciler(mgr, args.Actuator)
@@ -67,5 +67,5 @@ func add(mgr manager.Manager, options controller.Options, predicates []predicate
 		return err
 	}
 
-	return ctrl.Watch(&source.Kind{Type: &extensionsv1alpha1.BackupEntry{}}, &handler.EnqueueRequestForObject{}, predicates...)
+	return ctrl.Watch(&source.Kind{Type: &extensionsv1alpha1.BackupBucket{}}, &handler.EnqueueRequestForObject{}, predicates...)
 }
