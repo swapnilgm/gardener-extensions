@@ -113,7 +113,7 @@ func NewControllerManagerCommand(ctx context.Context) *cobra.Command {
 			controllercmd.PrefixOption("backupentry-", &backupEntryCtrlOptsUnprefixed),
 			controllercmd.PrefixOption("controlplane-", controlPlaneCtrlOpts),
 			controllercmd.PrefixOption("infrastructure-", &infraCtrlOptsUnprefixed),
-			controllercmd.PrefixOption("worker-", workerCtrlOpts),
+			controllercmd.PrefixOption("worker-", &workerCtrlOptsUnprefixed),
 			configFileOpts,
 			controllerSwitches,
 			webhookOptions,
